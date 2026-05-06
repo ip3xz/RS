@@ -1,82 +1,36 @@
 import ee
-
 ee.Authenticate()
-ee.Initialize(project='rs6-1-491806')
+ee.Initialize(project='proj1-491908')
 
 import geemap.core as geemap
-
-# Load Landsat 8 image
+# Load a Landsat 8 top-of-atmosphere reflectance image.
 image = ee.Image('LANDSAT/LC08/C02/T1_TOA/LC08_044034_20140318')
-
-# -------------------------------------------------
-# SIMPLE MULTIPLICATION METHOD
-# -------------------------------------------------
-
-mult_sharp = image.select(['B4', 'B3', 'B2']) \
-                  .multiply(image.select('B8'))
-
-# -------------------------------------------------
-# HSV / IHS METHOD
-# -------------------------------------------------
-
+# Simple multiplication method
+mult_sharp = image.select(['B4', 'B3', 'B2']).multiply(image.select('B8'))
+# HSV method
 hsv = image.select(['B4', 'B3', 'B2']).rgbToHsv()
-
 hsv_sharp = ee.Image.cat([
-    hsv.select('hue'),
-    hsv.select('saturation'),
-    image.select('B8')
+hsv.select('hue'),
+hsv.select('saturation'),
+image.select('B8')
 ]).hsvToRgb()
-
-# -------------------------------------------------
-# BROVEY TRANSFORMATION
-# -------------------------------------------------
-
+# Simple Brovey method
 rgb = image.select(['B4', 'B3', 'B2'])
-
-rgb_sum = image.select('B4') \
-          .add(image.select('B3')) \
-          .add(image.select('B2'))
-
+rgb_sum =image.select('B4').add(image.select('B3')).add(image.select('B2'))
 rgb_sum = rgb_sum.where(rgb_sum.eq(0), 0.0001)
-
 brovey_sharp = ee.Image.cat([
-    image.select('B4').divide(rgb_sum).multiply(image.select('B8')),
-    image.select('B3').divide(rgb_sum).multiply(image.select('B8')),
-    image.select('B2').divide(rgb_sum).multiply(image.select('B8'))
+image.select('B4').divide(rgb_sum).multiply(image.select('B8')),
+image.select('B3').divide(rgb_sum).multiply(image.select('B8')),
+image.select('B2').divide(rgb_sum).multiply(image.select('B8'))
 ]).rename(['B4', 'B3', 'B2'])
-
-# -------------------------------------------------
-# DISPLAY RESULTS
-# -------------------------------------------------
-
+# Display
 Map = geemap.Map(center=[37.76664, -122.44829], zoom=13)
+Map.add_layer(image, {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 0.25},
+'Original RGB')
+Map.add_layer(hsv_sharp, {'min': 0, 'max': 0.25}, 'HSV')
+Map.add_layer(mult_sharp, {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max':
+0.05}, 'Multiply')
 
-# Original RGB
-Map.add_layer(
-    image,
-    {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 0.25},
-    'Original RGB'
-)
-
-# HSV / IHS Pan-sharpening
-Map.add_layer(
-    hsv_sharp,
-    {'min': 0, 'max': 0.25},
-    'HSV'
-)
-
-# Multiplication Method
-Map.add_layer(
-    mult_sharp,
-    {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 0.05},
-    'Multiply'
-)
-
-# Brovey Transformation
-Map.add_layer(
-    brovey_sharp,
-    {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 0.1},
-    'Brovey'
-)
-
+Map.add_layer(brovey_sharp, {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max':
+0.1}, 'Brovey')
 Map
