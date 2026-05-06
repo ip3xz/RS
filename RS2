@@ -1,0 +1,102 @@
+from google.colab import drive
+import rasterio
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Mount Google Drive
+drive.mount('/content/drive')
+
+
+
+# Folder containing B1 to B7 images
+folder = "/content/drive/MyDrive/RSlabmaterial /with L8"
+# Read bands
+bands = {}
+
+for i in range(1, 8):
+
+    path = folder + f"/b{i}.TIF"
+
+    with rasterio.open(path) as src:
+
+        band = src.read(1).astype('float32')
+
+        # Remove NoData values
+        band[band == 0] = np.nan
+
+        bands[i] = band
+
+
+# Contrast stretching
+def qgis_stretch(band, p_low=2, p_high=98, gamma=1.3):
+
+    low, high = np.nanpercentile(band, (p_low, p_high))
+
+    band = np.clip(band, low, high)
+
+    band = (band - low) / (high - low)
+
+    return np.power(band, 1/gamma)
+
+
+# RGB composite display
+def show_composite(r, g, b, title):
+
+    R = qgis_stretch(bands[r])
+    G = qgis_stretch(bands[g])
+    B = qgis_stretch(bands[b])
+
+    rgb = np.dstack([R, G, B])
+
+    plt.figure(figsize=(6,6))
+    plt.imshow(rgb)
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
+
+
+# Different composites
+
+show_composite(4,3,2,"Natural Color")
+# Histogram of each band
+
+fig, axs = plt.subplots(2, 4, figsize=(15,8))
+
+axs = axs.flatten()
+
+for i in range(1,8):
+
+    axs[i-1].hist(bands[i].flatten(), bins=100, color='gray')
+
+    axs[i-1].set_title(f'Band {i} Histogram')
+
+    axs[i-1].set_xlabel('Pixel Value')
+
+    axs[i-1].set_ylabel('Frequency')
+
+
+# Remove empty subplot
+fig.delaxes(axs[7])
+
+plt.tight_layout()
+
+plt.show()
+
+
+show_composite(7,6,4,"False Color (Urban)")
+
+show_composite(5,4,3,"Color Infrared (Vegetation)")
+
+show_composite(6,5,2,"Agriculture")
+
+show_composite(7,6,5,"Atmospheric Penetration")
+
+show_composite(5,6,2,"Healthy Vegetation")
+
+show_composite(5,6,4,"Land/Water")
+
+show_composite(7,5,3,"Natural With Atmospheric Removal")
+
+show_composite(7,5,4,"Shortwave Infrared")
+
+show_composite(6,5,4,"Vegetation Analysis")
