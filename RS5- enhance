@@ -1,348 +1,111 @@
-# =========================================================
-# EXPERIMENT NO. 5
-# IMPLEMENT IMAGE ENHANCEMENT TECHNIQUES
-# =========================================================
-
 from google.colab import drive
 drive.mount('/content/drive')
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-import re
-import rasterio
 
-# =========================================================
-# PART A : IMAGE ENHANCEMENT TECHNIQUES
-# =========================================================
-
-image_path = "/content/drive/MyDrive/FinalYear-Sem-8_Lab/RS/Capture.PNG"
-
+image_path = "/content/imaged.png"
 img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
 # Normalize Image
 band_norm = img.astype(float)
 
 # Gaussian Smoothing
-gaussian_smooth = cv2.GaussianBlur(band_norm, (5,5), 0)
+gaussian_smooth = cv2.GaussianBlur(band_norm,(5,5),0)
 
 # Mean Smoothing
-mean_smooth = cv2.blur(band_norm, (5,5))
+mean_smooth = cv2.blur(band_norm,(5,5))
 
 # Sharpening
-kernel = np.array(([0,-1,0],
+kernel = np.array([[0,-1,0],
                    [-1,6,-1],
-                   [0,-1,0]))
+                   [0,-1,0]])
 
-sharpened = cv2.filter2D(band_norm, -1, kernel)
+sharpened = cv2.filter2D(band_norm,-1,kernel)
 
 # Sobel Directions
-sobel_x = cv2.Sobel(band_norm, cv2.CV_64F, 1, 0, ksize=3)
-sobel_y = cv2.Sobel(band_norm, cv2.CV_64F, 0, 1, ksize=3)
+sobel_x = cv2.Sobel(band_norm,cv2.CV_64F,1,0,ksize=3)
+
+sobel_y = cv2.Sobel(band_norm,cv2.CV_64F,0,1,ksize=3)
 
 sobel_xy = np.sqrt(sobel_x**2 + sobel_y**2)
 
 # Canny Edge Detection
-edges = cv2.Canny(img, 100, 200)
+edges = cv2.Canny(img,100,200)
 
-# =========================================================
-# DISPLAY FILTER RESULTS
-# =========================================================
 
 plt.figure(figsize=(14,10))
 
 plt.subplot(2,3,1)
 plt.title("Original Image")
-plt.imshow(band_norm, cmap='gray')
+plt.imshow(band_norm,cmap='gray')
 plt.colorbar()
 
 plt.subplot(2,3,2)
-plt.title("Gaussian Smoothening")
-plt.imshow(gaussian_smooth, cmap='gray')
+plt.title("Gaussian Smoothing")
+plt.imshow(gaussian_smooth,cmap='gray')
 plt.colorbar()
 
 plt.subplot(2,3,3)
-plt.title("Mean Smoothening")
-plt.imshow(mean_smooth, cmap='gray')
+plt.title("Mean Smoothing")
+plt.imshow(mean_smooth,cmap='gray')
 plt.colorbar()
 
 plt.subplot(2,3,4)
 plt.title("Sharpened Image")
-plt.imshow(sharpened, cmap='gray')
+plt.imshow(sharpened,cmap='gray')
 plt.colorbar()
 
 plt.subplot(2,3,5)
 plt.title("Canny Edge Detection")
-plt.imshow(edges, cmap='gray')
+plt.imshow(edges,cmap='gray')
 plt.colorbar()
 
 plt.tight_layout()
 plt.show()
 
-# =========================================================
-# SOBEL EDGE DETECTION
-# =========================================================
 
 plt.figure(figsize=(14,6))
 
 plt.subplot(1,4,1)
 plt.title("Original")
-plt.imshow(band_norm, cmap='gray')
+plt.imshow(band_norm,cmap='gray')
 
 plt.subplot(1,4,2)
 plt.title("Sobel X Direction")
-plt.imshow(sobel_x, cmap='gray')
+plt.imshow(sobel_x,cmap='gray')
 
 plt.subplot(1,4,3)
 plt.title("Sobel Y Direction")
-plt.imshow(sobel_y, cmap='gray')
+plt.imshow(sobel_y,cmap='gray')
 
 plt.subplot(1,4,4)
 plt.title("Sobel XY")
-plt.imshow(sobel_xy, cmap='gray')
+plt.imshow(sobel_xy,cmap='gray')
 
 plt.tight_layout()
 plt.show()
 
-# =========================================================
-# HISTOGRAM EQUALIZATION
-# =========================================================
+!pip install rasterio
+import rasterio
+import numpy as np
 
-equalized = cv2.equalizeHist(img)
+# Path to the Band 3 file from the MTL metadata
+band_3_file = "/content/imaged.png"
 
-plt.figure(figsize=(14,10))
+# Radiometric rescaling factors from the MTL file
+radiance_mult_band_3 = 1.2045E-02
+radiance_add_band_3 = -60.21523
 
-# Original Image
-plt.subplot(2,2,1)
-plt.title("Original Band")
-plt.imshow(img, cmap='gray')
-plt.colorbar()
+# Open the Band 3 image using rasterio
+with rasterio.open(band_3_file) as src:
+    band_3_data = src.read(1)  # Read the first band (Band 3)
 
-# Histogram of Original Image
-plt.subplot(2,2,2)
-plt.title("Histogram of Original Band")
-plt.hist(img.ravel(), bins=256)
+#DN to radiance
+radiance_band_3 = radiance_mult_band_3 * band_3_data + radiance_add_band_3
+import matplotlib.pyplot as plt
 
-# Equalized Image
-plt.subplot(2,2,3)
-plt.title("Histogram Equalized Image")
-plt.imshow(equalized, cmap='gray')
-plt.colorbar()
-
-# Histogram of Equalized Image
-plt.subplot(2,2,4)
-plt.title("Histogram of Equalized Image")
-plt.hist(equalized.ravel(), bins=256)
-
-plt.tight_layout()
-plt.show()
-
-# =========================================================
-# PIECEWISE LINEAR CONTRAST STRETCHING
-# =========================================================
-
-# Define transformation function
-def piecewise_linear_transform(image, r1, s1, r2, s2):
-
-    stretched_image = np.zeros_like(image)
-
-    # Segment 1
-    mask1 = image < r1
-    stretched_image[mask1] = (s1 / r1) * image[mask1]
-
-    # Segment 2
-    mask2 = (image >= r1) & (image < r2)
-    stretched_image[mask2] = (
-        ((s2 - s1) / (r2 - r1)) *
-        (image[mask2] - r1)
-    ) + s1
-
-    # Segment 3
-    mask3 = image >= r2
-    stretched_image[mask3] = (
-        ((1 - s2) / (1 - r2)) *
-        (image[mask3] - r2)
-    ) + s2
-
-    return stretched_image
-
-# Breakpoints
-r1, s1 = 0.2, 0.1
-r2, s2 = 0.7, 0.9
-
-# Normalize image to 0-1
-normalized_img = img.astype(float) / 255.0
-
-# Apply transformation
-piecewise_stretched = piecewise_linear_transform(
-    normalized_img,
-    r1, s1,
-    r2, s2
-)
-
-# Display Results
-plt.figure(figsize=(12,6))
-
-plt.subplot(1,2,1)
-plt.title("Original Normalized Band")
-plt.imshow(normalized_img, cmap='gray')
-plt.colorbar()
-
-plt.subplot(1,2,2)
-plt.title("Piece-wise Contrast Stretched Image")
-plt.imshow(piecewise_stretched, cmap='gray')
-plt.colorbar()
-
-plt.tight_layout()
-plt.show()
-
-# =========================================================
-# PART B : RADIOMETRIC / ATMOSPHERIC CORRECTION
-# =========================================================
-
-# Extract parameters from MTL file
-def get_mtl_values(mtl_file, band):
-
-    with open(mtl_file, "r") as f:
-        text = f.read()
-
-    ML = float(re.search(
-        rf'RADIANCE_MULT_BAND_{band}\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    AL = float(re.search(
-        rf'RADIANCE_ADD_BAND_{band}\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    Mp = float(re.search(
-        rf'REFLECTANCE_MULT_BAND_{band}\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    Ap = float(re.search(
-        rf'REFLECTANCE_ADD_BAND_{band}\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    sun_elev = float(re.search(
-        r'SUN_ELEVATION\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    earth_sun_dist = float(re.search(
-        r'EARTH_SUN_DISTANCE\s=\s([0-9E\-\.+]+)',
-        text).group(1))
-
-    return ML, AL, Mp, Ap, sun_elev, earth_sun_dist
-
-# ESUN values
-ESUN = {
-    1: 1970,
-    2: 1842,
-    3: 1547,
-    4: 1044,
-    5: 225.7
-}
-
-# Files
-mtl_file = "/content/drive/MyDrive/FinalYear-Sem-8_Lab/RS/MTL.txt"
-
-band_file = "/content/drive/MyDrive/FinalYear-Sem-8_Lab/RS/B5.TIF"
-
-band = 4
-
-# Read DN image
-with rasterio.open(band_file) as src:
-
-    DN = src.read(1).astype(np.float32)
-
-    nodata = src.nodata
-
-    if nodata is not None:
-        DN = np.where(DN == nodata, np.nan, DN)
-
-print("DN stats:", np.nanmin(DN), np.nanmax(DN))
-
-# Extract MTL values
-ML, AL, Mp, Ap, sun_elev, earth_sun_dist = get_mtl_values(
-    mtl_file,
-    band
-)
-
-# TOA Radiance
-radiance = ML * DN + AL
-
-# Reflectance without correction
-reflectance_uncorrected = Mp * DN + Ap
-
-# Reflectance with sun angle correction
-reflectance_angle = (
-    reflectance_uncorrected /
-    np.sin(np.deg2rad(sun_elev))
-)
-
-# TOA Reflectance using ESUN
-theta_sz = 90.0 - sun_elev
-
-reflectance_esun = (
-    (np.pi * radiance * (earth_sun_dist**2)) /
-    (ESUN[band] * np.cos(np.deg2rad(theta_sz)))
-)
-
-# Pick valid pixel
-valid_pixels = np.argwhere(~np.isnan(DN))
-
-row, col = valid_pixels[0]
-
-print("Valid pixel chosen at:", row, col)
-print("DN =", DN[row, col])
-print("Radiance =", radiance[row, col])
-print("Reflectance (uncorrected) =", reflectance_uncorrected[row, col])
-print("Reflectance (angle corrected) =", reflectance_angle[row, col])
-print("TOA Reflectance (ESUN method) =", reflectance_esun[row, col])
-
-# =========================================================
-# DISPLAY ATMOSPHERIC CORRECTION RESULTS
-# =========================================================
-
-plt.figure(figsize=(20,5))
-
-plt.subplot(1,4,1)
-plt.title("DN Image")
-plt.imshow(
-    DN,
-    cmap='gray',
-    vmin=np.nanmin(DN),
-    vmax=np.nanmax(DN)
-)
-plt.colorbar()
-
-plt.subplot(1,4,2)
-plt.title("TOA Radiance")
-plt.imshow(
-    radiance,
-    cmap='gray',
-    vmin=np.nanmin(radiance),
-    vmax=np.nanmax(radiance)
-)
-plt.colorbar()
-
-plt.subplot(1,4,3)
-plt.title("Reflectance")
-plt.imshow(
-    reflectance_angle,
-    cmap='gray',
-    vmin=np.nanmin(reflectance_angle),
-    vmax=np.nanmax(reflectance_angle)
-)
-plt.colorbar()
-
-plt.subplot(1,4,4)
-plt.title("TOA Reflectance (ESUN)")
-plt.imshow(
-    reflectance_esun,
-    cmap='gray',
-    vmin=np.nanmin(reflectance_esun),
-    vmax=np.nanmax(reflectance_esun)
-)
-plt.colorbar()
-
-plt.tight_layout()
+plt.imshow(radiance_band_3, cmap='gray')
+plt.colorbar(label='Radiance')
+plt.title("Band 3 Radiance")
 plt.show()
