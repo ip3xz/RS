@@ -1,0 +1,40 @@
+from osgeo import gdal, osr
+import numpy as np
+
+# Parameters for raster creation
+output = "output.tif"
+x_size = 100   # Number of columns
+y_size = 100   # Number of rows
+band_count = 1
+data_type = gdal.GDT_Float32
+
+# Create raster dataset
+driver = gdal.GetDriverByName('GTiff')
+ds = driver.Create(output, x_size, y_size, band_count, data_type)
+
+if ds is None:
+    print("Failed to create the raster file.")
+else:
+    # Set geotransform (originX, pixelWidth, rotation, originY, rotation, pixelHeight)
+    ds.SetGeoTransform([0, 1, 0, 0, 0, -1])
+
+    # Set projection (WGS84)
+    srs = osr.SpatialReference()
+    srs.SetWellKnownGeogCS("WGS84")
+    ds.SetProjection(srs.ExportToWkt())
+
+    # Generate random raster data
+    rasterband = np.random.random((y_size, x_size))
+
+    # Write data to band
+    band = ds.GetRasterBand(1)
+    band.WriteArray(rasterband)
+
+    # Flush and close dataset
+    band.FlushCache()
+    ds = None
+
+    # Load raster into QGIS
+    iface.addRasterLayer(output)
+
+    print("Raster file created successfully.")
