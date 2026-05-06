@@ -1,18 +1,20 @@
-## Import libraries
+# Unsupervised Classification using K-Means Clustering
+# Landsat-8 + Google Earth Engine + geemap
+
 import ee
 import geemap
 
+# Authenticate and initialize Earth Engine
 ee.Authenticate()
 ee.Initialize(project='proj1-491908')
 
-## Create an interactive map
+# Create map
 Map = geemap.Map()
-Map
 
+# Define location (Delhi)
+point = ee.Geometry.Point([77.2090, 28.6139])
 
-## Add data to the map
-point = ee.Geometry.Point([77.2090, 28.6139])  # Delhi coordinates
-
+# Load Landsat-8 image
 image = (
     ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
     .filterBounds(point)
@@ -22,143 +24,31 @@ image = (
     .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'])
 )
 
-vis_params = {"min": 0, "max": 3000, "bands": ["SR_B5", "SR_B4", "SR_B3"]}
-
+# Display image
+vis_params = {
+    "min": 0,
+    "max": 3000,
+    "bands": ["SR_B5", "SR_B4", "SR_B3"]
+}
 
 Map.centerObject(point, 8)
-Map.addLayer(image, vis_params, "Landsat-8")
+Map.addLayer(image, vis_params, "Landsat Image")
 
-# Make the training dataset.
+# Create training samples
 training = image.sample(
-    **{
-        #'region': region,
-        "scale": 30,
-        "numPixels": 5000,
-        "seed": 0,
-        "geometries": True,  # Set this to False to ignore geometries
-    }
+    scale=30,
+    numPixels=5000,
+    seed=0
 )
 
-Map.addLayer(training, {}, "training", False)
-Map
+# Apply K-Means clustering
+clusterer = ee.Clusterer.wekaKMeans(5).train(training)
 
-# Instantiate the clusterer and train it.
-n_clusters = 5
-clusterer = ee.Clusterer.wekaKMeans(n_clusters).train(training)# Cluster the input using the trained clusterer.
+# Generate clustered image
 result = image.cluster(clusterer)
 
-# # Display the clusters with random colors.
-Map.addLayer(result.randomVisualizer(), {}, "clusters")
-Maplegend_keys = ["One", "Two", "Three", "Four", "etc"]
-legend_colors = ["#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3"]
+# Display clustered result
+Map.addLayer(result.randomVisualizer(), {}, "K-Means Clusters")
 
-# Reclassify the map
-result = result.remap([0, 1, 2, 3, 4], [1, 2, 3, 4, 5])
-
-Map.addLayer(
-    result, {"min": 1, "max": 5, "palette": legend_colors}, "Labelled clusters"
-)
-Map.add_legend(
-    legend_keys=legend_keys, legend_colors=legend_colors, position="bottomright"
-)
-Map!pip install rasterioregion = image.geometry()
-from google.colab import files
-import zipfile
-
-# Define output path (Colab environment)
-out_file = "/content/cluster1.tif"
-
-# Export the clustered image
-geemap.ee_export_image(
-    result,
-    filename=out_file,
-    scale=90,
-    region=region,
-    file_per_band=False
-)
-
-# Zip the file
-zip_path = "/content/cluster1.zip"
-with zipfile.ZipFile(zip_path, 'w') as zipf:
-    zipf.write(out_file, "cluster1.tif")
-
-# Download to your computer
-files.download(zip_path)
-
-print("✅ Download started")from google.colab import files
-
-# Export the image (ADD region)
-geemap.ee_export_image(
-    result,
-    filename="cluster1.tif",
-    scale=90,
-    region=region
-)
-
-# Zip the file
-!zip cluster1.zip cluster1.tif
-
-# Download
-files.download("cluster1.zip")from google.colab import drive
-
-# Mount Google Drive
-drive.mount('/content/drive')
-
-# Make sure folder exists (important)
-import os
-os.makedirs("/content/drive/MyDrive/RS LAB", exist_ok=True)
-
-# Save to Drive (ADD region)
-output_drive_path = "/content/drive/MyDrive/RS LAB/cluster1.tif"
-
-geemap.ee_export_image(
-    result,
-    filename=output_drive_path,
-    scale=90,
-    region=region
-)
-
-print(f"✅ File saved to Google Drive: {output_drive_path}")import rasterio
-from rasterio.plot import show
-import matplotlib.pyplot as plt
-
-# Open the downloaded cluster file
-clusters = rasterio.open("/content/cluster1.tif")  # Update path if needed
-
-# Print metadata
-print("Number of bands:", clusters.count)  # Should be 1 (single-band classification)
-print("Image size (width x height):", clusters.width, "x", clusters.height)
-print("Coordinate Reference System (CRS):", clusters.crs)# Open the file
-clusters = rasterio.open("cluster1.tif")  # Update path if needed
-
-# Read the data
-cluster_data = clusters.read(1)
-
-# Create plot
-fig, ax = plt.subplots(figsize=(10, 10))
-
-# Plot the image and get the mappable object
-img = ax.imshow(cluster_data, cmap='viridis')
-
-# Add colorbar
-cbar = plt.colorbar(img, ax=ax, label='Cluster Class')
-
-# Add title
-ax.set_title('Land Cover Clusters')
-plt.show()fig, ax = plt.subplots(figsize=(10, 10))
-
-# First show the image and capture the returned AxesImage
-image = show(clusters, ax=ax, title='Land Cover Clusters')
-
-# Then add colorbar using the returned object
-plt.colorbar(image.get_images()[0], ax=ax, label='Cluster Class')
-plt.show()import numpy as np
-
-# Read raster data
-cluster_data = clusters.read(1)  # Read Band 1
-
-# Calculate pixel counts per class
-unique_classes, counts = np.unique(cluster_data, return_counts=True)
-print("\nClass Distribution:")
-for cls, count in zip(unique_classes, counts):
-    print(f"Class {cls}: {count} pixels ({count / cluster_data.size:.1%})")
+# Show map
+Map
