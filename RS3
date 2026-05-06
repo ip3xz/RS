@@ -1,0 +1,31 @@
+# PART A: NDVI CALCULATION
+# -----------------------------
+# Read RED and NIR bands (MODIS / LISS-III)
+red = rasterio.open('/content/drive/MyDrive/RS Lab/tif/LC08_L2SP_150044_20260222_20260227_02_T1_SR_B4.TIF').read(1)
+nir_ndvi = rasterio.open('/content/drive/MyDrive/RS Lab/tif/LC08_L2SP_150044_20260222_20260227_02_T1_SR_B5.TIF').read(1)
+# Convert to float
+red = red.astype(float)
+nir_ndvi = nir_ndvi.astype(float)
+# NDVI Formula
+ndvi = (nir_ndvi - red) / (nir_ndvi + red + 1e-10)
+# Display NDVI
+plt.figure()
+plt.imshow(ndvi, cmap='RdYlGn')
+plt.colorbar()
+plt.title("NDVI Image")
+plt.show()
+
+# PART B: NDWI CALCULATION
+# -----------------------------
+# Read Landsat 8 bands
+green = rasterio.open('/content/drive/MyDrive/RS Lab/tif/LC08_L2SP_150044_20260222_20260227_02_T1_SR_B3.TIF').read(1)
+nir_ndwi = rasterio.open('/content/drive/MyDrive/RS Lab/tif/LC08_L2SP_150044_20260222_20260227_02_T1_SR_B5.TIF').read(1)
+# Convert to float
+green = green.astype(float)
+nir_ndwi = nir_ndwi.astype(float)
+# NDWI Formula
+ndwi = (green - nir_ndwi) / (green + nir_ndwi + 1e-10)
+# Display NDWI
+plt.figure()plt.imshow(ndwi, cmap='Blues')
+plt.colorbar()
+plt.title("NDWI Image")
